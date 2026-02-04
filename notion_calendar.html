@@ -429,7 +429,6 @@
       position:fixed;
       inset:0;
       background: rgba(17, 24, 39, .35);
-      display:flex;
       align-items:center;
       justify-content:center;
       z-index:10000;
@@ -779,6 +778,7 @@ const STORAGE_KEY = `notion_calendar_widget:${WIDGET_ID}`;
 const CUSTOM_STICKERS_KEY = `notion_calendar_widget_custom_stickers:${WIDGET_ID}`;
 
 const el = (id) => document.getElementById(id);
+el("confirmOverlay").hidden = true;
 
 /* ✅ 모달 유틸 */
 let pendingAction = null;
