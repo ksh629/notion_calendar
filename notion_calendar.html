@@ -423,6 +423,102 @@
       padding:4px 8px;
       background:#fff;
     }
+
+    /* ✅ 모달(노션 iframe에서도 동작) */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(17, 24, 39, .35);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:10000;
+      padding:16px;
+    }
+
+    .modal{
+      width:min(420px, 100%);
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:#fff;
+      box-shadow: 0 18px 60px rgba(0,0,0,.18);
+      overflow:hidden;
+    }
+
+    .modal-h{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      background:#fff;
+    }
+
+    .modal-t{
+      font-size:14px;
+      font-weight:900;
+      letter-spacing:-.2px;
+    }
+
+    .icon-btn{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:12px;
+      padding:6px 10px;
+      cursor:pointer;
+      line-height:1;
+    }
+    .icon-btn:hover{ background:#f9fafb; }
+
+    .modal-b{
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .modal-msg{
+      font-size:13px;
+      line-height:1.45;
+      color:#111;
+    }
+    .modal-sub{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .modal-date{
+      border:1px solid var(--line);
+      background:#f8fafc;
+      border-radius:14px;
+      padding:10px 12px;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:-.2px;
+    }
+
+    .modal-actions{
+      display:flex;
+      gap:8px;
+      justify-content:flex-end;
+    }
+    .modal-actions button{
+      padding:9px 12px;
+      border-radius:12px;
+    }
+
+    /* ✅ 모달 '초기화' 버튼: 톤 맞추되 위험 액션 느낌은 텍스트로만 */
+    #confirmOk{
+      border:1px solid var(--line);
+      background:#fff;
+    }
+    #confirmOk:hover{
+      background:#fff5f5;
+      border-color:#fecaca;
+    }
+
+
   </style>
 </head>
 <body>
@@ -534,6 +630,31 @@
     </div>
   </div>
 </div>
+
+<!-- ✅ 초기화 확인 모달 -->
+<div id="confirmOverlay" class="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-h">
+      <div id="confirmTitle" class="modal-t">초기화</div>
+      <button id="confirmClose" class="icon-btn" aria-label="닫기">✕</button>
+    </div>
+
+    <div class="modal-b">
+      <div class="modal-msg">
+        선택한 날짜의 데이터를 삭제할까요?<br/>
+        <span class="modal-sub">(색/스티커/메모/체크리스트)</span>
+      </div>
+
+      <div class="modal-date" id="confirmDate">-</div>
+
+      <div class="modal-actions">
+        <button id="confirmCancel" class="btn-ghost ui-font">취소</button>
+        <button id="confirmOk" class="ui-font">초기화</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <div id="tooltip" class="tooltip"></div>
 
@@ -658,6 +779,40 @@ const STORAGE_KEY = `notion_calendar_widget:${WIDGET_ID}`;
 const CUSTOM_STICKERS_KEY = `notion_calendar_widget_custom_stickers:${WIDGET_ID}`;
 
 const el = (id) => document.getElementById(id);
+
+/* ✅ 모달 유틸 */
+let pendingAction = null;
+
+function openConfirmModal(dateKey){
+  const ov = el("confirmOverlay");
+  el("confirmDate").textContent = dateKey ? formatKoreanDateLabel(dateKey) : "-";
+  ov.hidden = false;
+}
+
+function closeConfirmModal(){
+  const ov = el("confirmOverlay");
+  ov.hidden = true;
+  pendingAction = null;
+}
+
+/* 모달 클릭/키 이벤트 */
+el("confirmClose").addEventListener("click", closeConfirmModal);
+el("confirmCancel").addEventListener("click", closeConfirmModal);
+el("confirmOverlay").addEventListener("click", (e)=>{
+  // 오버레이 바깥 클릭 시 닫기
+  if(e.target.id === "confirmOverlay") closeConfirmModal();
+});
+document.addEventListener("keydown", (e)=>{
+  if(e.key === "Escape" && !el("confirmOverlay").hidden){
+    closeConfirmModal();
+  }
+});
+
+el("confirmOk").addEventListener("click", ()=>{
+  if(typeof pendingAction === "function") pendingAction();
+  closeConfirmModal();
+});
+
 
 let state = loadState();
 let view = new Date();
@@ -1166,21 +1321,25 @@ el("prevBtn").addEventListener("click", ()=>shiftMonth(-1));
 el("nextBtn").addEventListener("click", ()=>shiftMonth(1));
 el("todayBtn").addEventListener("click", goTodaySelect);
 
-/* ------ 초기화(선택 날짜만) ------ */
 function clearSelected(){
   if(!ensurePicked()) return;
-  const ok = confirm(`선택한 날짜(${picked})의 데이터를 삭제할까요?`);
-  if(!ok) return;
-  delete state[picked];
-  saveState();
-  ensureDay(picked);
 
-  memoOpen = false;
-  checkOpen = false;
-  syncSections();
+  // ✅ confirm() 대신 모달
+  pendingAction = () => {
+    delete state[picked];
+    saveState();
+    ensureDay(picked);
 
-  render();
+    memoOpen = false;
+    checkOpen = false;
+    syncSections();
+
+    render();
+  };
+
+  openConfirmModal(picked);
 }
+
 el("clearSelectedBtn").addEventListener("click", clearSelected);
 
 /* ------ 내보내기/가져오기 ------ */
