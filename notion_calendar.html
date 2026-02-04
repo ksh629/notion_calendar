@@ -425,9 +425,11 @@
     }
 
     /* ✅ 모달(노션 iframe에서도 동작) */
+    /* confirmOverlay */
     .overlay{
       position:fixed;
       inset:0;
+      display:flex;
       background: rgba(17, 24, 39, .35);
       align-items:center;
       justify-content:center;
@@ -436,6 +438,7 @@
     }
 
     .modal{
+      margin:0 auto;
       width:min(420px, 100%);
       border:1px solid var(--line);
       border-radius:18px;
