@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notion Calendar Widget</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --fg:#111;
+      --muted:#6b7280;
+      --card:#f8fafc;
+      --line:#e5e7eb;
+      --shadow: 0 6px 18px rgba(0,0,0,.06);
+      --radius:16px;
+      --cell: 108px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+
+      --rose_h: #F43F5E;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--fg); font-family:var(--font);
+      display:flex; align-items:flex-start; justify-content:center;
+      padding:14px;
+    }
+    .wrap{ width:min(900px, 100%); }
+    .panel{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      background:var(--bg);
+    }
+
+    .ui-font{
+      font-size:15px;
+      font-weight:500;
+      letter-spacing:-.2px;
+    }
+
+    header{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+      background:#fff;
+      flex-wrap:wrap;
+    }
+    .left, .right{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .center{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      flex:1;
+      min-width:240px;
+    }
+    .title{ white-space:nowrap; }
+    .title b{ font-weight:800; }
+
+    button, input[type="text"]{
+      border:1px solid var(--line);
+      background:#fff;
+      padding:8px 10px;
+      border-radius:12px;
+      cursor:pointer;
+      font:inherit;
+    }
+    button:hover{background:#f9fafb}
+    button:active{transform:translateY(1px)}
+    .btn-ghost{background:transparent}
+
+    /* ✅ 초기화 버튼: 평범한 테두리(추가 버튼과 동일 톤) */
+    .btn-danger{ border-color: var(--line); }
+    .btn-danger:hover{ background:#f9fafb; }
+
+    .bar{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+      background:var(--card);
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+    .label{
+      font-size:12px; color:var(--muted); font-weight:900; letter-spacing:-.2px;
+      padding-top:6px;
+      min-width:52px;
+    }
+
+    .swatches{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+    .swatch{
+      width:26px; height:26px; border-radius:10px; border:1px solid var(--line);
+      cursor:pointer; box-shadow:0 1px 0 rgba(0,0,0,.03) inset;
+    }
+    .swatch.active{outline:2px solid #111; outline-offset:2px}
+
+    .sticker-area{display:flex; flex-direction:column; gap:8px; flex:1; min-width:260px}
+    .sticker-row{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+    .sticker{
+      min-width:34px;
+      height:34px;
+      padding:0 10px;
+      display:flex; align-items:center; justify-content:center;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#fff;
+      cursor:pointer;
+      user-select:none;
+    }
+    .sticker.active{outline:2px solid #111; outline-offset:2px}
+
+    .add-emoji{
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    }
+    .add-emoji input{
+      min-width:180px;
+      flex:1;
+      cursor:text;
+    }
+
+    .actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .hint{font-size:12px; color:var(--muted); line-height:1.4}
+    .hint b{color:#111}
+
+    .calendar{ background:#fff; }
+    .dow{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom:1px solid var(--line);
+      background:#fff;
+    }
+    .dow div{
+      padding:10px 0;
+      text-align:center;
+      font-size:12px;
+      color:var(--muted);
+      font-weight:900;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .cell{
+      height:var(--cell);
+      border-right:1px solid var(--line);
+      border-bottom:1px solid var(--line);
+      position:relative;
+      padding:10px;
+      cursor:pointer;
+      background:#fff;
+      display:flex;
+      align-items:flex-start;
+      justify-content:flex-start;
+      overflow:hidden;
+    }
+    .cell:nth-child(7n){border-right:none}
+
+    .date-block{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      z-index:1;
+    }
+    .num{
+      font-size:14px;
+      font-weight:950;
+      color:#111;
+      opacity:.95;
+      line-height:1;
+    }
+    .abbr{
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:-.2px;
+      line-height:1.1;
+      color:#dc2626;
+      opacity:.95;
+      white-space:nowrap;
+    }
+
+    .cell.out .num{opacity:.35}
+    .cell.out .abbr{opacity:.35}
+
+    .cell.sat .num{ color:#2563eb; }
+    .cell.sun .num{ color:#dc2626; }
+    .cell.holiday .num{ color:#dc2626; }
+
+    .cell.today{box-shadow: inset 0 0 0 1px #38BDF8;
+    }
+
+
+    .cell.selected{
+      outline:3px solid var(--rose_h);
+      outline-offset:-3px;
+    }
+
+    /* ✅ 배지: 3x3 슬롯 (스티커 2줄 + +n 1줄) */
+    .badges{
+    position:absolute;
+    right:8px;
+    bottom:8px;
+
+    display:grid;
+    grid-template-columns: repeat(3, 20px);
+    grid-template-rows: repeat(3, 20px); /* ✅ 3줄 */
+    gap:4px;
+
+    justify-content:end;
+    align-content:end;
+    justify-items:end;
+
+    font-size:18px;
+    line-height:1;
+    z-index:1;
+    }
+
+    .badge{
+    width:20px;
+    height:20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,.06));
+    }
+
+    /* +n: 9번칸(3행 3열) 고정으로 넣을 예정 */
+    .more{
+    width:20px;
+    height:18px;
+    font-size:11px;
+    font-weight:700;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:0 4px;
+    background:#fff;
+    color:#111;
+    line-height:18px;
+    cursor:default;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    }
+
+    .selected-panel{
+      padding:12px;
+      background:#fff;
+    }
+    .card{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:#fff;
+      overflow:hidden;
+    }
+    .card .content{
+      padding:12px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .section-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+      cursor:pointer;
+    }
+    .section-head .t{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:900;
+      letter-spacing:-.2px;
+    }
+    .chev{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:10px;
+      padding:4px 10px;
+      user-select:none;
+      line-height:1;
+    }
+
+    .section-body{ display:none; }
+    .section-body.open{ display:block; }
+
+    .chips{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      align-items:center;
+      min-height:0;
+    }
+    .chip{
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:6px 10px;
+      background:#fff;
+      font-size:13px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+    .chip .x{
+      opacity:.6;
+      cursor:pointer;
+      user-select:none;
+    }
+
+    textarea{
+      width:100%;
+      min-height:110px;
+      resize:vertical;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px;
+      font:inherit;
+    }
+
+    .check-add{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-bottom:8px;
+    }
+    .check-add input{
+      flex:1;
+      min-width:220px;
+      cursor:text;
+    }
+    .check-list{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .check-item{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:8px 10px;
+      background:#fff;
+    }
+    .check-item label{
+      flex:1;
+      font-size:14px;
+      line-height:1.3;
+      cursor:pointer;
+    }
+    .check-item.done label{
+      color:var(--muted);
+      text-decoration: line-through;
+    }
+    .check-item .del{
+      opacity:.6;
+      cursor:pointer;
+      user-select:none;
+    }
+
+    .footer{
+      padding:10px 14px;
+      border-top:1px solid var(--line);
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      background:#fff;
+    }
+    code.k{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:12px;
+      background:#f3f4f6;
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid #e5e7eb;
+    }
+
+    .tooltip{
+      position:fixed;
+      z-index:9999;
+      display:none;
+      max-width:260px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,.12);
+      font-size:13px;
+      line-height:1.35;
+      color:#111;
+      pointer-events:none;
+      white-space:normal;
+    }
+    .tooltip .t{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+      font-weight:700;
+    }
+    .tooltip .s{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+    .tooltip .p{
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:4px 8px;
+      background:#fff;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <header class="ui-font">
+      <div class="left">
+        <button id="todayBtn" class="ui-font">Today</button>
+      </div>
+
+      <div class="center ui-font">
+        <button id="prevBtn" class="btn-ghost ui-font">←</button>
+        <div class="title ui-font" id="ym"></div>
+        <button id="nextBtn" class="btn-ghost ui-font">→</button>
+      </div>
+
+      <div class="right">
+        <button id="exportBtn" class="ui-font">내보내기</button>
+        <button id="importBtn" class="ui-font">가져오기</button>
+      </div>
+    </header>
+
+    <div class="bar">
+      <div class="row">
+        <div class="label">색</div>
+        <div class="swatches" id="swatches"></div>
+      </div>
+
+      <div class="row">
+        <div class="label">스티커</div>
+        <div class="sticker-area">
+          <div class="sticker-row" id="stickers"></div>
+          <div class="add-emoji">
+            <input id="customEmoji" type="text" placeholder="이모지 추가 (예: 🧠, 🎧, 🐾)" />
+            <button id="addEmojiBtn">추가</button>
+            <button id="resetStickersBtn" class="btn-ghost">커스텀 초기화</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">액션</div>
+        <div class="actions">
+          <button id="clearSelectedBtn" class="btn-danger">초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="calendar">
+      <div class="dow">
+        <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="selected-panel">
+      <div class="card">
+        <div class="content">
+          <div><b id="pickedDate">-</b></div>
+
+          <div class="chips" id="pickedStickers"></div>
+
+          <div>
+            <div class="section-head" id="memoHead">
+              <div class="t">메모</div>
+              <div class="chev" id="memoChev">▼</div>
+            </div>
+            <div class="section-body" id="memoBody">
+              <textarea id="memo" placeholder="메모를 남겨도 돼요."></textarea>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head" id="checkHead">
+              <div class="t">체크리스트</div>
+              <div class="chev" id="checkChev">▼</div>
+            </div>
+            <div class="section-body" id="checkBody">
+              <div class="check-add">
+                <input id="checkInput" type="text" placeholder="할 일 추가 (Enter 가능)" />
+                <button id="addCheckBtn">추가</button>
+              </div>
+              <div class="check-list" id="checkList"></div>
+              <div class="hint">체크리스트는 선택한 날짜에만 저장돼요.</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head" id="helpHead">
+              <div class="t">설명</div>
+              <div class="chev" id="helpChev">▼</div>
+            </div>
+            <div class="section-body" id="helpBody">
+              <div class="hint" style="padding:8px 2px 0 2px;">
+                - 날짜 클릭: <b>선택</b><br/>
+                - 색 클릭: 선택 날짜 배경색 변경 (색상 <b>none</b> = 색 지우기)<br/>
+                - 스티커 클릭: 선택 날짜 스티커 <b>추가/제거</b><br/>
+                - “초기화”: 해당 날짜 데이터(색/스티커/메모/체크리스트) 삭제
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span class="hint">저장 키: <code class="k" id="storageKey"></code></span>
+          <span class="hint">v0.6</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+const COLORS = [
+  { name: "none", value: "" },
+  { name: "lemon_p", value: "#FEF08A" },
+  { name: "mint_p",  value: "#A7F3D0" },
+  { name: "sky_p",   value: "#BAE6FD" },
+  { name: "lilac_p", value: "#DDD6FE" },
+  { name: "rose_p",  value: "#FBCFE8" },
+  { name: "gray_p",  value: "#E5E7EB" },
+  { name: "lemon_m", value: "#FDE047" },
+  { name: "mint_m",  value: "#34D399" },
+  { name: "sky_m",   value: "#38BDF8" },
+  { name: "lilac_m", value: "#A78BFA" },
+  { name: "rose_m",  value: "#FB7185" },
+  { name: "gray_m",  value: "#CBD5E1" },
+  { name: "lemon_h", value: "#FACC15" },
+  { name: "mint_h",  value: "#10B981" },
+  { name: "sky_h",   value: "#0EA5E9" },
+  { name: "lilac_h", value: "#8B5CF6" },
+  { name: "rose_h",  value: "#F43F5E" },
+  { name: "gray_h",  value: "#94A3B8" },
+];
+const BASE_STICKERS = ["", "✅", "🔥", "🎉", "✈️", "📚", "💻", "📝", "🧘🏻‍♀️", "🏃🏻"];
+
+const HOLIDAYS_BY_YEAR = { /* (너가 준 그대로 유지) */ 
+  2026: {
+    "2026-01-01": "New Year's Day",
+    "2026-02-16": "Seollal Holiday",
+    "2026-02-17": "Seollal",
+    "2026-02-18": "Seollal Holiday",
+    "2026-03-01": "Independence Movement Day",
+    "2026-03-02": "Substitute Holiday (Independence)",
+    "2026-05-05": "Children's Day",
+    "2026-05-24": "Buddha's Birthday",
+    "2026-05-25": "Substitute Holiday (Buddha's Birthday)",
+    "2026-06-03": "Local Election Day",
+    "2026-06-06": "Memorial Day",
+    "2026-08-15": "Liberation Day",
+    "2026-08-17": "Substitute Holiday (Liberation Day)",
+    "2026-09-24": "Chuseok Holiday",
+    "2026-09-25": "Chuseok",
+    "2026-09-26": "Chuseok Holiday",
+    "2026-10-03": "National Foundation Day",
+    "2026-10-05": "Substitute Holiday (National Foundation Day)",
+    "2026-10-09": "Hangeul Day",
+    "2026-12-25": "Christmas Day",
+  },
+  2027: {
+    "2027-01-01": "New Year's Day",
+    "2027-02-06": "Seollal Holiday",
+    "2027-02-07": "Seollal",
+    "2027-02-08": "Seollal Holiday",
+    "2027-02-09": "Substitute Holiday (Seollal)",
+    "2027-03-01": "Independence Movement Day",
+    "2027-05-05": "Children's Day",
+    "2027-05-13": "Buddha's Birthday",
+    "2027-06-06": "Memorial Day",
+    "2027-08-15": "Liberation Day",
+    "2027-08-16": "Substitute Holiday (Liberation Day)",
+    "2027-09-14": "Chuseok Holiday",
+    "2027-09-15": "Chuseok",
+    "2027-09-16": "Chuseok Holiday",
+    "2027-10-03": "National Foundation Day",
+    "2027-10-04": "Substitute Holiday (National Foundation Day)",
+    "2027-10-09": "Hangeul Day",
+    "2027-10-11": "Substitute Holiday (Hangeul Day)",
+    "2027-12-25": "Christmas Day",
+    "2027-12-27": "Substitute Holiday (Christmas)",
+  },
+};
+
+function fallbackFixedHolidayName(ymd){
+  const mmdd = ymd.slice(5);
+  const fixed = {
+    "01-01": "New Year's Day",
+    "03-01": "Independence Movement Day",
+    "05-05": "Children's Day",
+    "06-06": "Memorial Day",
+    "08-15": "Liberation Day",
+    "10-03": "National Foundation Day",
+    "10-09": "Hangeul Day",
+    "12-25": "Christmas Day",
+  };
+  return fixed[mmdd] || "";
+}
+function holidayName(ymd){
+  const y = Number(ymd.slice(0,4));
+  const map = HOLIDAYS_BY_YEAR[y];
+  if(map && map[ymd]) return map[ymd];
+  return fallbackFixedHolidayName(ymd);
+}
+function holidayAbbr(ymd){
+  const name = holidayName(ymd);
+  if(!name) return "";
+  const rules = [
+    { test: /Seollal/i, abbr: "설" },
+    { test: /Chuseok/i, abbr: "추석" },
+    { test: /Buddha/i, abbr: "부처님" },
+    { test: /Substitute/i, abbr: "대체" },
+    { test: /Local Election/i, abbr: "선거" },
+    { test: /New Year/i, abbr: "신정" },
+    { test: /Independence/i, abbr: "삼일절" },
+    { test: /Children/i, abbr: "어린이날" },
+    { test: /Memorial/i, abbr: "현충일" },
+    { test: /Liberation/i, abbr: "광복절" },
+    { test: /National Foundation/i, abbr: "개천절" },
+    { test: /Hangeul/i, abbr: "한글날" },
+    { test: /Christmas/i, abbr: "성탄절" },
+  ];
+  for(const r of rules){
+    if(r.test.test(name)) return r.abbr;
+  }
+  return "공휴일";
+}
+
+const qs = new URLSearchParams(location.search);
+const WIDGET_ID = (qs.get("id") || "default").trim();
+const STORAGE_KEY = `notion_calendar_widget:${WIDGET_ID}`;
+const CUSTOM_STICKERS_KEY = `notion_calendar_widget_custom_stickers:${WIDGET_ID}`;
+
+const el = (id) => document.getElementById(id);
+
+let state = loadState();
+let view = new Date();
+view.setDate(1);
+
+let picked = null;
+let activeColor = COLORS[1].value;
+
+let stickers = loadStickers();
+let activeSticker = "✅";
+
+let memoOpen = false;
+let checkOpen = false;
+let helpOpen = false;
+
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    for(const k of Object.keys(parsed)){
+      const v = parsed[k];
+      if(v && typeof v === "object"){
+        if(Array.isArray(v.stickers) === false){
+          const old = v.sticker;
+          v.stickers = old ? [old] : [];
+          delete v.sticker;
+        }
+        if(typeof v.memo !== "string") v.memo = "";
+        if(typeof v.color !== "string") v.color = "";
+        if(Array.isArray(v.checklist) === false) v.checklist = [];
+      }
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function loadStickers(){
+  let custom = [];
+  try{
+    const raw = localStorage.getItem(CUSTOM_STICKERS_KEY);
+    custom = raw ? JSON.parse(raw) : [];
+    if(!Array.isArray(custom)) custom = [];
+  }catch{
+    custom = [];
+  }
+  const set = new Set(BASE_STICKERS);
+  custom.forEach(s=>{ if(typeof s==="string" && s.trim()) set.add(s.trim()); });
+  return Array.from(set);
+}
+function saveCustomStickers(arr){
+  localStorage.setItem(CUSTOM_STICKERS_KEY, JSON.stringify(arr));
+  stickers = loadStickers();
+  renderStickerRow();
+}
+
+function fmtDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function ensurePicked(){
+  if(!picked){
+    alert("날짜를 먼저 선택해 주세요.");
+    return false;
+  }
+  return true;
+}
+function ensureDay(key){
+  if(!state[key]) state[key] = { color:"", stickers:[], memo:"", checklist:[] };
+  if(Array.isArray(state[key].stickers) === false) state[key].stickers = [];
+  if(typeof state[key].memo !== "string") state[key].memo = "";
+  if(typeof state[key].color !== "string") state[key].color = "";
+  if(Array.isArray(state[key].checklist) === false) state[key].checklist = [];
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, (m)=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[m]));
+}
+function formatKoreanDateLabel(ymd){
+  const [yy, mm, dd] = ymd.split("-").map(Number);
+  const d = new Date(yy, mm - 1, dd);
+  const dow = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"][d.getDay()];
+  return `${yy}. ${mm}. ${dd}. ${dow}`;
+}
+
+function setBadgeSlotFixedMore(node, idx, totalIcons, hasMore){
+  // idx: 아이콘의 순번(0..totalIcons-1) - "+n" 제외
+  // totalIcons: 표시 아이콘 개수(최대 5)
+  // hasMore: +n 존재 여부
+
+  // ✅ +n이 있으면 (2,3)은 항상 +n이 쓰므로 아이콘은 거기를 피해서 배치
+  // 사용 가능한 슬롯:
+  // - 윗줄: (1,1)(1,2)(1,3)
+  // - 아랫줄: (2,1)(2,2)  // (2,3)은 +n 고정
+
+  let row, col;
+
+  if(totalIcons <= 3){
+    // 윗줄 오른쪽 정렬: totalIcons=1 -> col3, 2 -> col2~3, 3 -> col1~3
+    row = 1;
+    const startCol = 4 - totalIcons; // 1->3, 2->2, 3->1
+    col = startCol + idx;
+  }else{
+    // 4~5개: 앞 3개는 윗줄 1~3 고정
+    if(idx < 3){
+      row = 1;
+      col = idx + 1;
+    }else{
+      // 나머지(1~2개)는 아랫줄 오른쪽 정렬 BUT col3은 비워둠(+n)
+      row = 2;
+      const bottomCount = totalIcons - 3; // 1 or 2
+      // 가능한 열은 1,2만. 오른쪽 정렬 기준:
+      // bottomCount=1 -> col2
+      // bottomCount=2 -> col1, col2
+      const startCol = 3 - bottomCount; // 1->2, 2->1
+      col = startCol + (idx - 3);
+    }
+  }
+
+  node.style.gridRow = String(row);
+  node.style.gridColumn = String(col);
+}
+
+function appendIconAt(badgesEl, node, idx, totalIcons, hasMore){
+  setBadgeSlotFixedMore(node, idx, totalIcons, hasMore);
+  badgesEl.appendChild(node);
+}
+
+function appendMoreFixed(badgesEl, moreNode){
+  // ✅ +n은 항상 아랫줄 맨 오른쪽 고정
+  moreNode.style.gridRow = "2";
+  moreNode.style.gridColumn = "3";
+  badgesEl.appendChild(moreNode);
+}
+
+
+/* ✅ 내용 유무 무관: 메모/체크리스트 클릭 시 토글 */
+function syncSections(){
+  el("memoBody").classList.toggle("open", memoOpen);
+  el("memoChev").textContent = memoOpen ? "▲" : "▼";
+
+  el("checkBody").classList.toggle("open", checkOpen);
+  el("checkChev").textContent = checkOpen ? "▲" : "▼";
+
+  el("helpBody").classList.toggle("open", helpOpen);
+  el("helpChev").textContent = helpOpen ? "▲" : "▼";
+}
+
+el("memoHead").addEventListener("click", ()=>{
+  memoOpen = !memoOpen;
+  syncSections();
+  if(memoOpen) setTimeout(()=> el("memo")?.focus(), 0);
+});
+el("checkHead").addEventListener("click", ()=>{
+  checkOpen = !checkOpen;
+  syncSections();
+  if(checkOpen) setTimeout(()=> el("checkInput")?.focus(), 0);
+});
+el("helpHead").addEventListener("click", ()=>{
+  helpOpen = !helpOpen;
+  syncSections();
+});
+
+/* ------ 스와치/스티커 ------ */
+function renderSwatches(){
+  const sw = el("swatches");
+  sw.innerHTML = "";
+  COLORS.forEach(c=>{
+    const div = document.createElement("div");
+    div.className = "swatch" + (c.value===activeColor ? " active" : "");
+    div.title = c.name;
+    div.style.background = c.value || "#fff";
+    div.addEventListener("click", ()=>{
+      activeColor = c.value;
+      if(!ensurePicked()) return;
+      ensureDay(picked);
+      state[picked].color = activeColor;
+      saveState();
+      render();
+      renderSwatches();
+    });
+    sw.appendChild(div);
+  });
+}
+
+function renderStickerRow(){
+  const st = el("stickers");
+  st.innerHTML = "";
+  stickers.forEach(s=>{
+    const btn = document.createElement("div");
+    btn.className = "sticker" + (s===activeSticker ? " active" : "");
+    btn.textContent = s || "없음";
+    btn.title = s ? "클릭: 추가/제거(토글)" : "클릭: 선택 날짜 스티커 전체 제거";
+    btn.addEventListener("click", ()=>{
+      activeSticker = s;
+
+      if(!ensurePicked()){
+        renderStickerRow();
+        return;
+      }
+      ensureDay(picked);
+
+      if(activeSticker === ""){
+        state[picked].stickers = [];
+      }else{
+        const arr = state[picked].stickers;
+        const idx = arr.indexOf(activeSticker);
+        if(idx >= 0) arr.splice(idx, 1);
+        else arr.push(activeSticker);
+      }
+
+      saveState();
+      renderPickedStickers();
+      render();
+      renderStickerRow();
+    });
+    st.appendChild(btn);
+  });
+}
+
+/* ------ +n 툴팁 ------ */
+const tooltip = el("tooltip");
+function showTooltip(x, y, dateKey){
+  const list = state[dateKey]?.stickers || [];
+  tooltip.innerHTML = `
+    <div class="t">${dateKey} 전체 스티커</div>
+    <div class="s">${list.map(s=>`<span class="p">${escapeHtml(s)}</span>`).join("")}</div>
+  `;
+  tooltip.style.display = "block";
+  moveTooltip(x,y);
+}
+function moveTooltip(x,y){
+  if(tooltip.style.display !== "block") return;
+  const pad = 12;
+  const tx = Math.min(window.innerWidth - 20, x + pad);
+  const ty = Math.min(window.innerHeight - 20, y + pad);
+  tooltip.style.left = tx + "px";
+  tooltip.style.top = ty + "px";
+}
+function hideTooltip(){
+  tooltip.style.display = "none";
+  tooltip.innerHTML = "";
+}
+
+/* ------ 선택 날짜 스티커 chips ------ */
+function renderPickedStickers(){
+  const box = el("pickedStickers");
+  box.innerHTML = "";
+  if(!picked) return;
+  const arr = state[picked]?.stickers || [];
+  if(arr.length === 0) return;
+
+  arr.forEach((s, idx)=>{
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.innerHTML = `<span>${escapeHtml(s)}</span><span class="x" title="삭제">✕</span>`;
+    chip.querySelector(".x").addEventListener("click", ()=>{
+      ensureDay(picked);
+      state[picked].stickers.splice(idx, 1);
+      saveState();
+      renderPickedStickers();
+      render();
+    });
+    box.appendChild(chip);
+  });
+}
+
+/* ------ 체크리스트 ------ */
+function renderChecklist(){
+  const listEl = el("checkList");
+  listEl.innerHTML = "";
+  if(!picked) return;
+  ensureDay(picked);
+  const items = state[picked].checklist;
+
+  items.forEach((it, idx)=>{
+    const row = document.createElement("div");
+    row.className = "check-item" + (it.done ? " done" : "");
+    row.innerHTML = `
+      <input type="checkbox" ${it.done ? "checked":""} />
+      <label>${escapeHtml(it.text)}</label>
+      <span class="del" title="삭제">✕</span>
+    `;
+    row.querySelector("input").addEventListener("change", (e)=>{
+      it.done = e.target.checked;
+      saveState();
+      renderChecklist();
+    });
+    row.querySelector(".del").addEventListener("click", ()=>{
+      items.splice(idx, 1);
+      saveState();
+      renderChecklist();
+    });
+    listEl.appendChild(row);
+  });
+}
+function addChecklistItem(){
+  if(!ensurePicked()) return;
+  const v = el("checkInput").value.trim();
+  if(!v) return;
+  ensureDay(picked);
+  state[picked].checklist.push({ text: v, done: false });
+  el("checkInput").value = "";
+  saveState();
+  renderChecklist();
+}
+el("addCheckBtn").addEventListener("click", addChecklistItem);
+el("checkInput").addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    e.preventDefault();
+    addChecklistItem();
+  }
+});
+
+/* ------ 메모 저장 ------ */
+el("memo").addEventListener("input", ()=>{
+  if(!picked) return;
+  ensureDay(picked);
+  state[picked].memo = el("memo").value;
+  saveState();
+});
+
+/* ------ 달력 렌더 ------ */
+function render(){
+  const y = view.getFullYear();
+  const m = view.getMonth();
+  el("ym").innerHTML = `<b>${y}년 ${m+1}월</b>`;
+  el("storageKey").textContent = STORAGE_KEY;
+
+  const grid = el("grid");
+  grid.innerHTML = "";
+
+  const first = new Date(y, m, 1);
+  const firstDow = first.getDay();
+  const start = new Date(y, m, 1 - firstDow);
+
+  const today = new Date();
+
+  for(let i=0;i<42;i++){
+    const d = new Date(start);
+    d.setDate(start.getDate()+i);
+
+    const key = fmtDate(d);
+    const inMonth = d.getMonth()===m;
+    const dow = d.getDay();
+    const isHoliday = !!holidayName(key);
+    const abbr = isHoliday ? holidayAbbr(key) : "";
+
+    const cell = document.createElement("div");
+    cell.className =
+      "cell" +
+      (inMonth ? "" : " out") +
+      ((d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth() && d.getDate()===today.getDate()) ? " today" : "") +
+      (picked===key ? " selected" : "") +
+      (dow===0 ? " sun" : "") +
+      (dow===6 ? " sat" : "") +
+      (isHoliday ? " holiday" : "");
+
+    cell.dataset.date = key;
+    if(isHoliday) cell.title = holidayName(key);
+
+    const saved = state[key];
+    if(saved?.color){
+      cell.style.background = saved.color;
+    }
+
+    const dateBlock = document.createElement("div");
+    dateBlock.className = "date-block";
+
+    const num = document.createElement("div");
+    num.className = "num";
+    num.textContent = d.getDate();
+    dateBlock.appendChild(num);
+
+    if(isHoliday){
+      const a = document.createElement("div");
+      a.className = "abbr";
+      a.textContent = abbr;
+      dateBlock.appendChild(a);
+    }
+
+    const badges = document.createElement("div");
+    badges.className = "badges";
+
+    const arr = saved?.stickers || [];
+
+    // ✅ 표시 스티커는 "최근 6개"를 사용 (추가 UX에 자연스러움)
+    const shown = arr.slice(-6);
+    const remain = arr.length - 6;
+
+    // ✅ 배치 규칙(오→왼, 2행→1행, 3개 넘어가면 2행의 3개가 1행으로 올라가고 2행에 새로 채움)
+    const n = shown.length;
+
+    // 1) 스티커 배치
+    shown.forEach((s, i) => {
+    const span = document.createElement("span");
+    span.className = "badge";
+    span.textContent = s;
+
+    let row, col;
+
+    if (n <= 3) {
+        // n=1: (2,3) / n=2: (2,2)(2,3) / n=3: (2,1)(2,2)(2,3)
+        row = 2;
+        col = (4 - n) + i;          // 1->3, 2->2..3, 3->1..3
+    } else {
+        // 처음 3개는 1행 1~3 고정으로 "올라감"
+        if (i < 3) {
+        row = 1;
+        col = i + 1;              // (1,1)(1,2)(1,3)
+        } else {
+        // 나머지(1~3개)는 2행 오른쪽부터 채움: n=4 -> (2,3), n=5 -> (2,2)(2,3), n=6 -> (2,1)(2,2)(2,3)
+        row = 2;
+        const bottomCount = n - 3;          // 1..3
+        col = (4 - bottomCount) + (i - 3);  // 1->3, 2->2..3, 3->1..3
+        }
+    }
+
+    span.style.gridRow = String(row);
+    span.style.gridColumn = String(col);
+    badges.appendChild(span);
+    });
+
+    // 2) +n 배치: 항상 9번 칸(3행 3열) 고정
+    if (remain > 0) {
+    const more = document.createElement("div");
+    more.className = "more";
+    more.textContent = `+${remain}`;
+
+    more.style.gridRow = "3";
+    more.style.gridColumn = "3";
+
+    more.addEventListener("mouseenter", (e)=> showTooltip(e.clientX, e.clientY, key));
+    more.addEventListener("mousemove", (e)=> moveTooltip(e.clientX, e.clientY));
+    more.addEventListener("mouseleave", hideTooltip);
+
+    badges.appendChild(more);
+    }
+
+    
+
+    cell.appendChild(dateBlock);
+    cell.appendChild(badges);
+
+    cell.addEventListener("click", ()=>{
+      picked = key;
+      ensureDay(picked);
+
+      el("pickedDate").textContent = formatKoreanDateLabel(picked);
+      el("memo").value = state[picked].memo || "";
+
+      renderPickedStickers();
+      renderChecklist();
+
+      // 자동 오픈은 유지하되, "토글 가능"이라 문제 없음
+      memoOpen = (state[picked].memo || "").trim().length > 0;
+      checkOpen = (state[picked].checklist || []).length > 0;
+
+      syncSections();
+      render();
+    });
+
+    grid.appendChild(cell);
+  }
+
+  if(picked){
+    ensureDay(picked);
+    el("pickedDate").textContent = formatKoreanDateLabel(picked);
+    el("memo").value = state[picked].memo || "";
+    renderPickedStickers();
+    renderChecklist();
+  } else {
+    el("pickedDate").textContent = "-";
+    el("memo").value = "";
+    el("pickedStickers").innerHTML = "";
+    el("checkList").innerHTML = "";
+  }
+
+  syncSections();
+}
+
+/* ------ 월 이동 / 오늘(선택까지) ------ */
+function shiftMonth(delta){
+  view.setMonth(view.getMonth()+delta);
+  view.setDate(1);
+  render();
+}
+function goTodaySelect(){
+  const t = new Date();
+  view = new Date(t.getFullYear(), t.getMonth(), 1);
+  picked = fmtDate(t);
+  ensureDay(picked);
+
+  memoOpen = (state[picked].memo || "").trim().length > 0;
+  checkOpen = (state[picked].checklist || []).length > 0;
+
+  render();
+}
+el("prevBtn").addEventListener("click", ()=>shiftMonth(-1));
+el("nextBtn").addEventListener("click", ()=>shiftMonth(1));
+el("todayBtn").addEventListener("click", goTodaySelect);
+
+/* ------ 초기화(선택 날짜만) ------ */
+function clearSelected(){
+  if(!ensurePicked()) return;
+  const ok = confirm(`선택한 날짜(${picked})의 데이터를 삭제할까요?`);
+  if(!ok) return;
+  delete state[picked];
+  saveState();
+  ensureDay(picked);
+
+  memoOpen = false;
+  checkOpen = false;
+  syncSections();
+
+  render();
+}
+el("clearSelectedBtn").addEventListener("click", clearSelected);
+
+/* ------ 내보내기/가져오기 ------ */
+function exportData(){
+  const payload = { widgetId: WIDGET_ID, storageKey: STORAGE_KEY, state, customStickersKey: CUSTOM_STICKERS_KEY };
+  const text = JSON.stringify(payload, null, 2);
+  navigator.clipboard?.writeText(text).then(()=>{
+    alert("클립보드에 복사했어요. (붙여넣기 가능)");
+  }).catch(()=>{
+    prompt("아래 텍스트를 복사하세요:", text);
+  });
+}
+function importData(){
+  const raw = prompt("내보낸 JSON을 붙여넣으세요:");
+  if(!raw) return;
+  try{
+    const parsed = JSON.parse(raw);
+    if(!parsed.state || typeof parsed.state!=="object") throw new Error("state 없음");
+    state = parsed.state;
+
+    for(const k of Object.keys(state)){
+      const v = state[k];
+      if(v && typeof v === "object"){
+        if(Array.isArray(v.stickers) === false){
+          const old = v.sticker;
+          v.stickers = old ? [old] : [];
+          delete v.sticker;
+        }
+        if(typeof v.memo !== "string") v.memo = "";
+        if(typeof v.color !== "string") v.color = "";
+        if(Array.isArray(v.checklist) === false) v.checklist = [];
+      }
+    }
+
+    saveState();
+    render();
+    alert("가져오기 완료!");
+  }catch(e){
+    alert("가져오기 실패: JSON 형식인지 확인해 주세요.");
+  }
+}
+el("exportBtn").addEventListener("click", exportData);
+el("importBtn").addEventListener("click", importData);
+
+/* ------ 커스텀 이모지 ------ */
+function addCustomEmoji(){
+  const raw = el("customEmoji").value.trim();
+  if(!raw){
+    alert("추가할 이모지를 입력해 주세요.");
+    return;
+  }
+  let custom = [];
+  try{
+    const saved = localStorage.getItem(CUSTOM_STICKERS_KEY);
+    custom = saved ? JSON.parse(saved) : [];
+    if(!Array.isArray(custom)) custom = [];
+  }catch{
+    custom = [];
+  }
+
+  if(!custom.includes(raw) && !BASE_STICKERS.includes(raw)){
+    custom.push(raw);
+    saveCustomStickers(custom);
+  }
+
+  el("customEmoji").value = "";
+}
+function resetCustomStickers(){
+  const ok = confirm("이 위젯(id 기준)의 커스텀 스티커를 초기화할까요?");
+  if(!ok) return;
+  saveCustomStickers([]);
+}
+el("addEmojiBtn").addEventListener("click", addCustomEmoji);
+el("resetStickersBtn").addEventListener("click", resetCustomStickers);
+el("customEmoji").addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    e.preventDefault();
+    addCustomEmoji();
+  }
+});
+
+renderSwatches();
+renderStickerRow();
+render();
+</script>
+</body>
+</html>
